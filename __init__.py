@@ -52,7 +52,7 @@ class Node(object):
         cmds.setAttr("%s.notes" % s.name, l=False) # unlock attribute
         cmds.setAttr("%s.notes" % s.name, pickle.dumps(s._data, 0), type="string", l=True)
 
-class MainWindow(object):
+class Main(object):
     """
     Display markers
     """
@@ -137,7 +137,17 @@ class MainWindow(object):
 
     def remove_marker(s, frame):
         """ Remove marker """
-        print "removing", frame
+        if frame in s.markers:
+            del s.markers[frame]
+            s.store.data["markers"] = s.markers
+            s.store.save()
+            s.refresh()
+            print "removing", frame
+
+    def go_to_marker(s, frame):
+        """ Switch time to the provided frame """
+        cmds.currentTime(frame)
+        print "Moving to : %s" % frame
 
     def refresh(s):
         """ add entries to gui """
@@ -146,22 +156,23 @@ class MainWindow(object):
 
         frames = sorted(s.markers.keys())
         length = max(len(str(f)) for f in frames)
+        colours = [
+            (0.2, 0.2, 0.2),
+            (0.25, 0.25, 0.25)
+            ]
 
-        def loop(frame):
+        def loop(colour, frame):
             frame_name = str(frame)
             label = s.markers[frame]
-            cmds.rowLayout(nc=3, ad3=2, p=s.inner)
-            cmds.button(l="0" * (length - len(frame_name)) + frame_name)
+            cmds.rowLayout(nc=3, ad3=2, p=s.inner, bgc=colours[colour])
+            cmds.button(l="0" * (length - len(frame_name)) + frame_name, c=lambda _: s.go_to_marker(frame))
             cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
             cmds.iconTextButton(
                 st="iconOnly",
                 i="removeRenderable.png",
-                ann="Remove this object from the export selection.",
                 h=30,
                 w=30,
-                c=lambda: s.remove_marker(frame))
-        for frame in frames:
-            loop(frame)
-
-def Main():
-    MainWindow()
+                c=lambda: s.remove_marker(frame)
+                )
+        for i, frame in enumerate(frames):
+            loop(i % 2, frame)
