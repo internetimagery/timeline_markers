@@ -11,7 +11,8 @@ LANGUAGE = {
         "save" : "Save markers.",
         "save_desc" : "Save the marker information to a file.",
         "load" : "Load markers.",
-        "load_desc" : "Load some markers from a file."
+        "load_desc" : "Load some markers from a file.",
+        "load_err" : "There was a problem loading your file."
     },
     # "english" : {
     #     "current" : "Add current time.",
@@ -161,17 +162,29 @@ class Main(object):
         cmds.currentTime(frame)
         print "Moving to : %s" % frame
 
-    def load_markers(s):
+    def load_markers(s, _):
         """ Load markers from a file """
-
-        f = cmds.fileDialog2(
+        for path in cmds.fileDialog2(
             dir=cmds.workspace(q=True, rd=True),
-            caption=s.i18n["filedialog.titleLoad"],
             fileMode=1,
-            okCaption=s.i18n["filedialog.loadBtn"],
-            cancelCaption=s.i18n["cancel"],
-            fileFilter="%s (*%s)" % (s.i18n["filedialog.clipname"], ext)
-        )
+            fileFilter="Marker (*.txt)"
+        ) or []:
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+            except ValueError:
+                cmds.warning(s.language["load_err"])
+
+            # Validate our data!
+            try:
+                for frame in data:
+                    check_num = float(frame)
+            except ValueError:
+                cmds.warning(s.language["load_err"])
+
+            s.markers = data
+            s.refresh()
+
 
     def save_markers(s, _):
         """ Save markers to a file """
@@ -179,11 +192,10 @@ class Main(object):
             for path in cmds.fileDialog2(
                 dir=cmds.workspace(q=True, rd=True),
                 fileMode=0,
-                fileFilter="Marker (.txt)"
+                fileFilter="Marker (*.txt)"
             ) or []:
-                if not os.path.exists(path):
-                    with open(path, "w") as f:
-                        json.dump(s.markers, f)
+                with open(path, "w") as f:
+                    json.dump(s.markers, f)
 
     def refresh(s):
         """ add entries to gui """
@@ -210,7 +222,6 @@ class Main(object):
                     l="0" * (length - len(frame_name)) + frame_name,
                     i="traxFrameRange.png",
                     h=icon_side,
-                    w=icon_side,
                     c=lambda: s.go_to_marker(frame)
                 )
                 cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
