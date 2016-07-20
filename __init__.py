@@ -110,9 +110,13 @@ class MainWindow(object):
         cmds.button(s.current_button, e=True, ann=s.language["current_desc"], l="%s (%s)" % (s.language["current"], frame))
         cmds.button(s.selected_button, e=True, ann=s.language["selected_desc"], l=s.language["selected"])
 
-    def update_name(s, text):
+    def update_name(s, frame, text):
         """ update the name of text box """
-        print "updating", text
+        if frame in s.markers:
+            s.markers[frame] = text
+            s.store.data["markers"] = s.markers
+            s.store.save()
+            print "Updated marker %s label : %s" % (frame, text)
 
     def add_current(s, _):
         """ Add current frame """
@@ -131,16 +135,33 @@ class MainWindow(object):
             s.store.save()
             print "Added marker at : %s" % frame
 
+    def remove_marker(s, frame):
+        """ Remove marker """
+        print "removing", frame
+
     def refresh(s):
         """ add entries to gui """
         for item in cmds.layout(s.inner, ca=True, q=True) or []:
             cmds.deleteUI(item)
 
-        for frame in sorted(s.markers.keys()):
+        frames = sorted(s.markers.keys())
+        length = max(len(str(f)) for f in frames)
+
+        def loop(frame):
+            frame_name = str(frame)
+            label = s.markers[frame]
             cmds.rowLayout(nc=3, ad3=2, p=s.inner)
-            cmds.button(l=frame)
-            cmds.textField(tx=s.markers[frame], cc=s.update_name)
-            cmds.button(l="delete me")
+            cmds.button(l="0" * (length - len(frame_name)) + frame_name)
+            cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
+            cmds.iconTextButton(
+                st="iconOnly",
+                i="removeRenderable.png",
+                ann="Remove this object from the export selection.",
+                h=30,
+                w=30,
+                c=lambda: s.remove_marker(frame))
+        for frame in frames:
+            loop(frame)
 
 def Main():
     MainWindow()
