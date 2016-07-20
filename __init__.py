@@ -3,18 +3,18 @@
 # TEXT FOR TRANSLATION BELOW::
 LANGUAGE = {
     "english" : {
-        "current" : "Add current time.",
+        "current" : "Add current time. (%s)",
         "current_desc" : "Click to add the current time as a marker.",
         "selected" : "Add selected keys.",
-        "selected_desc" : "Click to add all keys highlighted in the timeline as markers."
-
+        "selected_desc" : "Click to add all keys highlighted in the timeline as markers.",
+        "goto" : "Go to frame: %s"
     },
     # "english" : {
     #     "current" : "Add current time.",
     #     "current_desc" : "Click to add the current time as a marker.",
     #     "selected" : "Add selected keys.",
-    #     "selected_desc" : "Click to add all keys highlighted in the timeline as markers."
-    #
+    #     "selected_desc" : "Click to add all keys highlighted in the timeline as markers.",
+    #     "goto" : "Go to frame: "
     # },
 }
 DEFAULT_LANGUAGE = "english"
@@ -105,7 +105,7 @@ class Main(object):
     def update_current(s):
         """ update button to read current frame """
         frame = cmds.currentTime(q=True)
-        cmds.button(s.current_button, e=True, ann=s.language["current_desc"], l="%s (%s)" % (s.language["current"], frame))
+        cmds.button(s.current_button, e=True, ann=s.language["current_desc"], l=s.language["current"] % frame)
         cmds.button(s.selected_button, e=True, ann=s.language["selected_desc"], l=s.language["selected"])
 
     def update_name(s, frame, text):
@@ -158,6 +158,7 @@ class Main(object):
             cmds.deleteUI(item)
 
         frames = sorted(s.markers.keys())
+        icon_side = 30
         if frames:
             length = max(len(str(f)) for f in frames)
             colours = [
@@ -169,13 +170,22 @@ class Main(object):
                 frame_name = str(frame)
                 label = s.markers[frame]
                 cmds.rowLayout(nc=3, ad3=2, p=s.inner, bgc=colours[colour])
-                cmds.button(l="0" * (length - len(frame_name)) + frame_name, c=lambda _: s.go_to_marker(frame))
+                # cmds.button(l="0" * (length - len(frame_name)) + frame_name, c=lambda _: s.go_to_marker(frame))
+                cmds.iconTextButton(
+                    ann=s.language["goto"] % frame_name,
+                    st="iconAndTextHorizontal",
+                    l="0" * (length - len(frame_name)) + frame_name,
+                    i="traxFrameRange.png",
+                    h=icon_side,
+                    w=icon_side,
+                    c=lambda: s.go_to_marker(frame)
+                )
                 cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
                 cmds.iconTextButton(
                     st="iconOnly",
                     i="removeRenderable.png",
-                    h=30,
-                    w=30,
+                    h=icon_side,
+                    w=icon_side,
                     c=lambda: s.remove_marker(frame)
                     )
             for i, frame in enumerate(frames):
