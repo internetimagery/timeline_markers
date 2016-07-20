@@ -53,9 +53,7 @@ class Node(object):
         cmds.setAttr("%s.notes" % s.name, pickle.dumps(s._data, 0), type="string", l=True)
 
 class Main(object):
-    """
-    Display markers
-    """
+    """ Display markers """
     def __init__(s):
         # Build window
         name = "TimelineMarkersMainWindow"
@@ -125,7 +123,12 @@ class Main(object):
 
     def add_selected(s, _):
         """ Add selected keys """
-        print "adding selected"
+        slider = mel.eval("$tmp = $gPlayBackSlider")
+        frame_range = (cmds.timeControl(slider, q=True, ra=True) or []) if cmds.timeControl(slider, q=True, rv=True) else (cmds.playbackOptions(q=True, min=True), cmds.playbackOptions(q=True, max=True))
+        keys = set(cmds.keyframe(q=True, t=frame_range, tc=True) or [])
+        for key in keys:
+            s.add_marker(key)
+        s.refresh()
 
     def add_marker(s, frame, label="Marker"):
         """ Add a marker """
@@ -155,24 +158,25 @@ class Main(object):
             cmds.deleteUI(item)
 
         frames = sorted(s.markers.keys())
-        length = max(len(str(f)) for f in frames)
-        colours = [
-            (0.2, 0.2, 0.2),
-            (0.25, 0.25, 0.25)
-            ]
+        if frames:
+            length = max(len(str(f)) for f in frames)
+            colours = [
+                (0.2, 0.2, 0.2),
+                (0.25, 0.25, 0.25)
+                ]
 
-        def loop(colour, frame):
-            frame_name = str(frame)
-            label = s.markers[frame]
-            cmds.rowLayout(nc=3, ad3=2, p=s.inner, bgc=colours[colour])
-            cmds.button(l="0" * (length - len(frame_name)) + frame_name, c=lambda _: s.go_to_marker(frame))
-            cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
-            cmds.iconTextButton(
-                st="iconOnly",
-                i="removeRenderable.png",
-                h=30,
-                w=30,
-                c=lambda: s.remove_marker(frame)
-                )
-        for i, frame in enumerate(frames):
-            loop(i % 2, frame)
+            def loop(colour, frame):
+                frame_name = str(frame)
+                label = s.markers[frame]
+                cmds.rowLayout(nc=3, ad3=2, p=s.inner, bgc=colours[colour])
+                cmds.button(l="0" * (length - len(frame_name)) + frame_name, c=lambda _: s.go_to_marker(frame))
+                cmds.textField(tx=label, cc=lambda tx: s.update_name(frame, tx))
+                cmds.iconTextButton(
+                    st="iconOnly",
+                    i="removeRenderable.png",
+                    h=30,
+                    w=30,
+                    c=lambda: s.remove_marker(frame)
+                    )
+            for i, frame in enumerate(frames):
+                loop(i % 2, frame)
