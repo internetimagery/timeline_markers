@@ -1,17 +1,25 @@
 # Create markers on the timeline.
 
+# TEXT FOR TRANSLATION BELOW::
 LANGUAGE = {
     "english" : {
         "current" : "Add current time.",
-        "selected" : "Add selected time."
+        "current_desc" : "Click to add the current time as a marker.",
+        "selected" : "Add selected keys.",
+        "selected_desc" : "Click to add all keys highlighted in the timeline as markers."
+
     },
-    "pirate" : {
-        "current" : "Yarr",
-        "selected" : "avast!"
-    }
+    # "english" : {
+    #     "current" : "Add current time.",
+    #     "current_desc" : "Click to add the current time as a marker.",
+    #     "selected" : "Add selected keys.",
+    #     "selected_desc" : "Click to add all keys highlighted in the timeline as markers."
+    #
+    # },
 }
 DEFAULT_LANGUAGE = "english"
 
+# DON'T TOUCH ANYTHING BELOW THIS LINE
 
 import maya.mel as mel
 import maya.cmds as cmds
@@ -63,10 +71,16 @@ class MainWindow(object):
         for lang in LANGUAGE:
             cmds.menuItem(l=lang)
         s.outer = cmds.columnLayout(adj=True)
-        s.inner = cmds.scrollLayout(cr=True)
+        s.inner = cmds.scrollLayout(cr=True, h=600)
+
+        # Buttons!
+        s.current_button = cmds.button(p=s.outer, c=s.add_current)
+        s.selected_button = cmds.button(p=s.outer, c=s.add_selected)
+
 
         # Lets go!
         s.load_data()
+        s.refresh()
 
         cmds.showWindow(s.window)
 
@@ -78,6 +92,7 @@ class MainWindow(object):
         """ Load up any stored data """
         s.save_data = s.store.data
         language = s.save_data.get("lang", DEFAULT_LANGUAGE)
+        s.markers = s.save_data.get("markers", {})
         s.build_gui(language if language in LANGUAGE else DEFAULT_LANGUAGE)
 
     def build_gui(s, language):
@@ -85,26 +100,47 @@ class MainWindow(object):
         s.save_data["lang"] = language
         s.language = LANGUAGE[language]
         s.store.save()
-
         cmds.optionMenu(s.language_box, e=True, v=language)
-        for item in cmds.layout(s.outer, ca=True, q=True) or []:
-            cmds.deleteUI(item)
-        # Buttons
-        s.current_button = cmds.button(p=s.outer, c=lambda _: s.add_current(cmds.currentTime(q=True)))
+
         s.update_current()
 
     def update_current(s):
         """ update button to read current frame """
         frame = cmds.currentTime(q=True)
-        cmds.button(s.current_button, e=True, l="%s (%s)" % (s.language["current"], frame))
+        cmds.button(s.current_button, e=True, ann=s.language["current_desc"], l="%s (%s)" % (s.language["current"], frame))
+        cmds.button(s.selected_button, e=True, ann=s.language["selected_desc"], l=s.language["selected"])
 
-    def add_current(s, frame):
+    def update_name(s, text):
+        """ update the name of text box """
+        print "updating", text
+
+    def add_current(s, _):
         """ Add current frame """
-        print "adding ", frame
+        s.add_marker(cmds.currentTime(q=True))
+        s.refresh()
 
+    def add_selected(s, _):
+        """ Add selected keys """
+        print "adding selected"
+
+    def add_marker(s, frame, label="Marker"):
+        """ Add a marker """
+        if frame not in s.markers:
+            s.markers[frame] = label
+            s.store.data["markers"] = s.markers
+            s.store.save()
+            print "Added marker at : %s" % frame
 
     def refresh(s):
         """ add entries to gui """
+        for item in cmds.layout(s.inner, ca=True, q=True) or []:
+            cmds.deleteUI(item)
 
+        for frame in sorted(s.markers.keys()):
+            cmds.rowLayout(nc=3, ad3=2, p=s.inner)
+            cmds.button(l=frame)
+            cmds.textField(tx=s.markers[frame], cc=s.update_name)
+            cmds.button(l="delete me")
 
-MainWindow()
+def Main():
+    MainWindow()
