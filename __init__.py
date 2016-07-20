@@ -7,7 +7,11 @@ LANGUAGE = {
         "current_desc" : "Click to add the current time as a marker.",
         "selected" : "Add selected keys.",
         "selected_desc" : "Click to add all keys highlighted in the timeline as markers.",
-        "goto" : "Go to frame: %s"
+        "goto" : "Go to frame: %s",
+        "save" : "Save markers.",
+        "save_desc" : "Save the marker information to a file.",
+        "load" : "Load markers.",
+        "load_desc" : "Load some markers from a file."
     },
     # "english" : {
     #     "current" : "Add current time.",
@@ -21,6 +25,8 @@ DEFAULT_LANGUAGE = "english"
 
 # DON'T TOUCH ANYTHING BELOW THIS LINE
 
+import json
+import os.path
 import maya.mel as mel
 import maya.cmds as cmds
 try:
@@ -74,7 +80,8 @@ class Main(object):
         # Buttons!
         s.current_button = cmds.button(p=s.outer, c=s.add_current)
         s.selected_button = cmds.button(p=s.outer, c=s.add_selected)
-
+        s.save_button = cmds.button(p=s.outer, c=s.save_markers)
+        s.load_button = cmds.button(p=s.outer, c=s.load_markers)
 
         # Lets go!
         s.load_data()
@@ -92,6 +99,7 @@ class Main(object):
         language = s.save_data.get("lang", DEFAULT_LANGUAGE)
         s.markers = s.save_data.get("markers", {})
         s.build_gui(language if language in LANGUAGE else DEFAULT_LANGUAGE)
+        s.refresh()
 
     def build_gui(s, language):
         """ build out buttons etc """
@@ -99,7 +107,6 @@ class Main(object):
         s.language = LANGUAGE[language]
         s.store.save()
         cmds.optionMenu(s.language_box, e=True, v=language)
-
         s.update_current()
 
     def update_current(s):
@@ -107,6 +114,8 @@ class Main(object):
         frame = cmds.currentTime(q=True)
         cmds.button(s.current_button, e=True, ann=s.language["current_desc"], l=s.language["current"] % frame)
         cmds.button(s.selected_button, e=True, ann=s.language["selected_desc"], l=s.language["selected"])
+        cmds.button(s.save_button, e=True, ann=s.language["save_desc"], l=s.language["save"])
+        cmds.button(s.load_button, e=True, ann=s.language["load_desc"], l=s.language["load"])
 
     def update_name(s, frame, text):
         """ update the name of text box """
@@ -151,6 +160,30 @@ class Main(object):
         """ Switch time to the provided frame """
         cmds.currentTime(frame)
         print "Moving to : %s" % frame
+
+    def load_markers(s):
+        """ Load markers from a file """
+
+        f = cmds.fileDialog2(
+            dir=cmds.workspace(q=True, rd=True),
+            caption=s.i18n["filedialog.titleLoad"],
+            fileMode=1,
+            okCaption=s.i18n["filedialog.loadBtn"],
+            cancelCaption=s.i18n["cancel"],
+            fileFilter="%s (*%s)" % (s.i18n["filedialog.clipname"], ext)
+        )
+
+    def save_markers(s, _):
+        """ Save markers to a file """
+        if s.markers:
+            for path in cmds.fileDialog2(
+                dir=cmds.workspace(q=True, rd=True),
+                fileMode=0,
+                fileFilter="Marker (.txt)"
+            ) or []:
+                if not os.path.exists(path):
+                    with open(path, "w") as f:
+                        json.dump(s.markers, f)
 
     def refresh(s):
         """ add entries to gui """
