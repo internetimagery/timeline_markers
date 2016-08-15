@@ -30,10 +30,28 @@ import json
 import os.path
 import maya.mel as mel
 import maya.cmds as cmds
+import smarter_selection as sm
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+def get_keytimes():
+    """ Grab keyframes """
+    times = set()
+
+    times |= set(sm.get_keys()) # First check highlighted keyframes
+    if not times:
+        times |= set(sm.get_graph()) # Next check the graph editor
+        if not times:
+            times |= set(sm.get_channelbox()) # Finally check the channelbox
+        if not times: # If we haven't specified any time at all, use all keyframes :s
+            times |= set(cmds.keyframe(q=True, tc=True) or [])
+        if times: # Narrow selection to highlighted range or visible range. Exception is maually selected keyframes
+            range_ = sm.get_range()
+            times = set(time_ for time_ in times if range_[0] <= time_ <= range_[1])
+    for key in times:
+        yield key
 
 class Node(object):
     """ Store Data in Object """
@@ -133,10 +151,7 @@ class Main(object):
 
     def add_selected(s, _):
         """ Add selected keys """
-        slider = mel.eval("$tmp = $gPlayBackSlider")
-        frame_range = (cmds.timeControl(slider, q=True, ra=True) or []) if cmds.timeControl(slider, q=True, rv=True) else (cmds.playbackOptions(q=True, min=True), cmds.playbackOptions(q=True, max=True))
-        keys = set(cmds.keyframe(q=True, t=frame_range, tc=True) or [])
-        for key in keys:
+        for key in get_keytimes():
             s.add_marker(key)
         s.refresh()
 
